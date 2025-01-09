@@ -101,14 +101,25 @@ light_dark_subset() {
 }
 
 install_symlink() {
-    local refresh="${1:-2s}"
     local basepath="$HOME/Library/Application Support/xbar/plugins/vpn-next"
+
+    if [[ "$1" =~ ^-l|--list|list|ls$ ]]; then
+        cd "$(dirname "$basepath")"
+        ls -l "$(basename "$basepath")"*.sh
+        return $r
+    fi
+
+    local refresh="${1:-2s}"
     for file in "$basepath"*.sh; do 
-        if [ -s "$file" ]; then 
+        if [ -s "$file" ]; then
+            echo "Removing   '${file##*/}'"
             rm -f "$file" 
         fi
     done
-    ln -s "$(readlink -f ${BASH_SOURCE})" "${basepath}.${refresh}.sh"
+
+    local this="$(readlink -f ${BASH_SOURCE})"
+    echo "Installing '$(basename "$basepath").${refresh}.sh' -> '$this'"
+    ln -s "$this" "${basepath}.${refresh}.sh"
 }
 
 list_vpns() {
