@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 
-# <xbar.title>VPN Status (Network Extensions)</xbar.title>
+# <xbar.title>VPN status/control (via Network Extensions)</xbar.title>
 # <xbar.version>v1.0</xbar.version>
 # <xbar.author>Andrius Vitkauskas</xbar.author>
 # <xbar.author.github>anandi108</xbar.author.github>
 # <xbar.desc>Displays status of MacOS VPN interfaces (via Network Extensions) with option to connect/disconnect.</xbar.desc>
 # <xbar.image>https://raw.githubusercontent.com/anandi108/xbar_vpn_next/refs/heads/master/img/screenshot.jpg</xbar.image>
 # <xbar.abouturl>https://github.com/anandi108/xbar_vpn_next</xbar.abouturl>
-# <xbar.dependencies>bash,date,scutil</xbar.dependencies>
+# <xbar.dependencies>scutil,bash,date,readlink</xbar.dependencies>
 
-MENU_ICONS="${XBAR_VPN_MENU_ICONS:-default}"   # default|"<icon_off> <icon_on_1> <icon_on_multi> <icon_progress>"
+MENU_ICONS="${XBAR_VPN_MENU_ICONS:-default}"   # default|"<icon_off> <icon_on_1> <icon_on_multi> <icon_progress> <dark_icon_off> <dark_icon_on_1> <dark_icon_on_multi> <dark_icon_progress>"
+MENU_COLORS="${XBAR_VPN_MENU_COLORS:-default}" # default|"<color_off> <color_on> <color_progress> <dark_color_off> <dark_color_on> <dark_color_progress>"
 MENU_COUNT="${XBAR_VPN_MENU_COUNT:-default}"   # default|circled|dice|"<icon0> <icon1> <icon2> ... <icon_more>"
-MENU_COLORS="${XBAR_VPN_MENU_COLORS:-default}" # default|"<color_off> <color_on> <color_progress>"
 MENU_FONT_SIZE="${XBAR_VPN_MENU_FONT_SIZE:-14}"
 MENU_FONT_NAME="${XBAR_VPN_MENU_FONT_NAME:-CourierNew}"
 
-ITEM_ICONS="${XBAR_VPN_ITEM_ICONS:-default}"   # default|"<item_off> <item_on> <item_progress>"
-ITEM_COLORS="${XBAR_VPN_ITEM_COLORS:-default}" # default|"<color_off> <color_on> <color_progress>"
+ITEM_ICONS="${XBAR_VPN_ITEM_ICONS:-default}"   # default|"<item_off> <item_on> <item_progress> <dark_item_off> <dark_item_on> <dark_item_progress>"
+ITEM_COLORS="${XBAR_VPN_ITEM_COLORS:-default}" # default|"<color_off> <color_on> <color_progress> <dark_color_off> <dark_color_on> <dark_color_progress>"
 ITEM_FONT_SIZE="${XBAR_VPN_ITEM_FONT_SIZE:-14}"
 ITEM_FONT_NAME="${XBAR_VPN_ITEM_FONT_NAME:-CourierNew}"
 ITEM_DISPLAY_DURATION="${XBAR_VPN_DISPLAY_DURATION:-1}"
@@ -64,74 +64,40 @@ main() {
 }
 
 parse_config() {
-    local default_colors="#555555 #550000 #005500"
-    if [ "$XBARDarkMode" == "true" ]; then
-        default_colors="#999999 #FFFF99 #99FF99"
-    fi
-
-    case "${#MENU_COLORS[@]}" in
-        1) 
-            MENU_COLORS="${MENU_COLORS/default/}"
-            MENU_COLORS=( ${MENU_COLORS:-$default_colors} )
-            ;;
-        0) MENU_COLORS=( $default_colors ) ;;
-        *) MENU_COLORS=( "${MENU_COLORS[@]}" ) ;;
-    esac
-    #
-    case "${#ITEM_COLORS[@]}" in
-        1) 
-            ITEM_COLORS="${ITEM_COLORS/default/}"
-            ITEM_COLORS=( ${ITEM_COLORS:-$default_colors} )
-            ;;
-        0) ITEM_COLORS=( $default_colors ) ;;
-        *) ITEM_COLORS=( "${ITEM_COLORS[@]}" ) ;;
-    esac
-
     define_icons
     define_images
 
-    case "$MENU_ICONS" in
-        default) 
-            MENU_ICONS=(
-                "$ICON_UNLOCKED"
-                "$ICON_LOCKED"
-                "$ICON_LOCKED"
-                "$ICON_HOURGLASS_FULL"
-            ) ;;
-        *)       
-            if [ "${#MENU_ICONS[@]}" -eq 1 ]; then
-                MENU_ICONS=( $MENU_ICONS )
-            else
-                MENU_ICONS=( "${MENU_ICONS[@]}" )
-            fi
-            ;;
-    esac
+    local default_colors="#555555 #550000 #005500 #999999 #FFFF99 #99FF99"
+    #
+    MENU_COLORS="${MENU_COLORS/default/}"
+    MENU_COLORS=( $( light_dark_subset 3 ${MENU_COLORS:-$default_colors} ) )
+    #
+    ITEM_COLORS="${ITEM_COLORS/default/}"
+    ITEM_COLORS=( $( light_dark_subset 3 ${ITEM_COLORS:-$default_colors} ) )
 
+    MENU_ICONS="${MENU_ICONS/default/}"
+    MENU_ICONS=( $(light_dark_subset 4 ${MENU_ICONS:-"$ICON_UNLOCKED $ICON_LOCKED $ICON_LOCKED $ICON_HOURGLASS_FULL"} ) )
+    #
+    ITEM_ICONS="${ITEM_ICONS/default/}"
+    ITEM_ICONS=( $(light_dark_subset 3 ${ITEM_ICONS:-"$ICON_BOXBOX $ICON_LOCKED $ICON_HOURGLASS_COLOR"} ) )
+    #
     case "$MENU_COUNT" in
         '')      MENU_COUNT=() ;;
         default) MENU_COUNT=( '' {1..9} $ICON_ELIPSIS ) ;;
         circled) MENU_COUNT=( '' $ICON_CIRCLED_{1..9} $ICON_ELIPSIS ) ;;
         dice)    MENU_COUNT=( '' $ICON_DICE_{1..6} $ICON_ELIPSIS ) ;;
-        *)       if [ "${#MENU_COUNT[@]}" -eq 1 ]; then
-                     MENU_COUNT=( $MENU_COUNT )
-                 else
-                     MENU_COUNT=( "${MENU_COUNT[@]}" )
-                 fi
-                 ;;
+        *)       MENU_COUNT=( $MENU_COUNT ) ;;
     esac
+}
 
-    case "$ITEM_ICONS" in
-        default) 
-            ITEM_ICONS=( "$ICON_BOXBOX" "$ICON_LOCKED" "$ICON_HOURGLASS_COLOR" )
-            ;;
-        *) 
-            if [ "${#ITEM_ICONS[@]}" -eq 1 ]; then
-                ITEM_ICONS=( $ITEM_ICONS )
-            else
-                ITEM_ICONS=( "${ITEM_ICONS[@]}" )
-            fi
-            ;;
-    esac
+light_dark_subset() {
+    local size="${1}"
+    shift 1
+    if [[ "$XBARDarkMode" == "true" && $# -gt 0$size ]]; then
+        echo "${@:((size+1)):size}"
+    else
+        echo "${@:1:size}"
+    fi
 }
 
 install_symlink() {
